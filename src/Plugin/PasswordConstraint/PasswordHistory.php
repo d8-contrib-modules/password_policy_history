@@ -39,9 +39,9 @@ class PasswordHistory extends PasswordConstraintBase {
     $password_service = \Drupal::service('password');
 
     //query for users hashes
-    $hashes = db_query('password_policy_history', 'pph')
-      ->fields('pph', array())
-      ->condition('uid', $user_context['uid'])
+    $hashes = db_select('password_policy_history', 'pph')
+    ->fields('pph', array('pass_hash'))
+      ->condition('uid', 1)
       ->execute()
       ->fetchAll();
 
