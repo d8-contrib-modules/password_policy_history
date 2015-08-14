@@ -31,26 +31,31 @@ class PasswordHistory extends PasswordConstraintBase {
   function validate($password, $user_context) {
     $configuration = $this->getConfiguration();
     $validation = new PasswordPolicyValidation();
-    var_dump($user_context);
 
     if (empty($user_context['uid'])) {
       return $validation;
     }
 
-    $hashed_pass = \Drupal::service('password')->hash(trim($password));
-    var_dump($hashed_pass);
+    $password_service = \Drupal::service('password');
 
-    //query for number of repeated by user
-    $repeated_rows = db_query('password_policy_history', 'pph')
+    //query for users hashes
+    $hashes = db_query('password_policy_history', 'pph')
       ->fields('pph', array())
       ->condition('uid', $user_context['uid'])
-      ->condition('pass_hash', $hashed_pass)
       ->execute()
       ->fetchAll();
 
-    if (count($repeated_rows)!=0 and count($repeated_rows)>= $configuration['history_repeats']) {
-      $validation->setErrorMessage($this->t('You cannot use the same password @history-repeats and this has been used @number-repeats', array('@history-repeats'=>$configuration['history_repeats'], '@number-repeats'=>count($repeated_rows))));
+    $repeats = 0;
+    foreach ($hashes as $hash) {
+      if ($password_service->check($password, $hash)) {
+        $repeats++;
+      }
     }
+
+    if ($repeats >= $configuration['history_repeats']) {
+      $validation->setErrorMessage($this->t('You cannot use the same password @history-repeats and this has been used @number-repeats', array('@history-repeats'=>$configuration['history_repeats'], '@number-repeats'=> $repeats)));
+    }
+
     return $validation;
   }
 
