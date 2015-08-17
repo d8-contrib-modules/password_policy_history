@@ -32,7 +32,16 @@ class PasswordHistory extends PasswordConstraintBase {
     $configuration = $this->getConfiguration();
     $validation = new PasswordPolicyValidation();
 
-    if (empty($user_context['uid'])) {
+    if (!empty($user_context['uid'])) {
+      $uid = $user_context['uid'];
+    }
+
+    if (empty($user_context['uid']) && !empty($user_context['mail'])) {
+      $user = \Drupal::entityManager()->getStorage('user')->loadByProperties(array('mail' => $user_context['mail']));
+      $uid = array_keys($user)[0]; // TODO: This is hacky and should not be hacky. PP Should be passing in the uid though
+    }
+
+    if (empty($user_context['uid']) && empty($uid)) {
       return $validation;
     }
 
@@ -41,19 +50,19 @@ class PasswordHistory extends PasswordConstraintBase {
     //query for users hashes
     $hashes = db_select('password_policy_history', 'pph')
     ->fields('pph', array('pass_hash'))
-      ->condition('uid', 1)
+      ->condition('uid', $uid)
       ->execute()
       ->fetchAll();
 
     $repeats = 0;
     foreach ($hashes as $hash) {
-      if ($password_service->check($password, $hash)) {
+      if ($password_service->check($password, $hash->pass_hash)) {
         $repeats++;
       }
     }
 
-    if ($repeats >= $configuration['history_repeats']) {
-      $validation->setErrorMessage($this->t('You cannot use the same password @history-repeats and this has been used @number-repeats', array('@history-repeats'=>$configuration['history_repeats'], '@number-repeats'=> $repeats)));
+    if ($repeats > $configuration['history_repeats']) {
+      $validation->setErrorMessage($this->t('You cannot use the same password more than @history-repeats time(s) and this has been used @number-repeats time(s)', array('@history-repeats'=>$configuration['history_repeats']+1, '@number-repeats'=> $repeats)));
     }
 
     return $validation;
@@ -101,7 +110,7 @@ class PasswordHistory extends PasswordConstraintBase {
    * {@inheritdoc}
    */
   public function getSummary() {
-    return $this->t('Number of allowed repeated passwords @number-repeats', array('@number-repeats' => $this->configuration['history_repeats']));
+    return $this->t('Number of allowed repeated passwords: @number-repeats', array('@number-repeats' => $this->configuration['history_repeats']));
   }
 
 }
