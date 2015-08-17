@@ -32,16 +32,7 @@ class PasswordHistory extends PasswordConstraintBase {
     $configuration = $this->getConfiguration();
     $validation = new PasswordPolicyValidation();
 
-    if (!empty($user_context['uid'])) {
-      $uid = $user_context['uid'];
-    }
-
-    if (empty($user_context['uid']) && !empty($user_context['mail'])) {
-      $user = \Drupal::entityManager()->getStorage('user')->loadByProperties(array('mail' => $user_context['mail']));
-      $uid = array_keys($user)[0]; // TODO: This is hacky and should not be hacky. PP Should be passing in the uid though
-    }
-
-    if (empty($user_context['uid']) && empty($uid)) {
+    if (empty($user_context['uid'])) {
       return $validation;
     }
 
@@ -50,7 +41,7 @@ class PasswordHistory extends PasswordConstraintBase {
     //query for users hashes
     $hashes = db_select('password_policy_history', 'pph')
     ->fields('pph', array('pass_hash'))
-      ->condition('uid', $uid)
+      ->condition('uid', $user_context['uid'])
       ->execute()
       ->fetchAll();
 
